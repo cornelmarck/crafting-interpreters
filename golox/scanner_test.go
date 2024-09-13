@@ -18,33 +18,39 @@ func TestScanTokens(t *testing.T) {
 		{
 			Name:   "single character",
 			Src:    "*",
-			Tokens: []TokenType{Star, EOF},
+			Tokens: []TokenType{Star},
 		},
 		{
 			Name:   "with whitespace",
 			Src:    "\n * + *   \n   ",
-			Tokens: []TokenType{Star, Plus, Star, EOF},
+			Tokens: []TokenType{Star, Plus, Star},
 		},
 		{
 			Name:   "empty string",
 			Src:    "",
-			Tokens: []TokenType{EOF},
+			Tokens: []TokenType{},
 		},
 		{
 			Name:   "two char tokens",
 			Src:    "\t >= \n\n <==",
-			Tokens: []TokenType{GreaterEqual, LessEqual, Equal, EOF},
+			Tokens: []TokenType{GreaterEqual, LessEqual, Equal},
 		},
 		{
 			Name:   "keyword",
 			Src:    "while",
-			Tokens: []TokenType{While, EOF},
+			Tokens: []TokenType{While},
+		},
+		{
+			Name:     "identifier and keyword",
+			Src:      "beans and toast",
+			Tokens:   []TokenType{Identifier, And, Identifier},
+			Literals: []string{"beans", "", "toast"},
 		},
 		{
 			Name:     "string literal",
-			Src:      "beans and toast",
-			Tokens:   []TokenType{Identifier, And, Identifier, EOF},
-			Literals: []string{"beans", "", "toast", ""},
+			Src:      `beans = "toast"`,
+			Tokens:   []TokenType{Identifier, Equal, String},
+			Literals: []string{"beans", "", "toast"},
 		},
 	} {
 		tc := tc
@@ -56,22 +62,29 @@ func TestScanTokens(t *testing.T) {
 
 			// token types
 			var expectedTokens []string
-			var actualTokens []string
 			for _, t := range tc.Tokens {
 				expectedTokens = append(expectedTokens, tokens[t])
 			}
+			expectedTokens = append(expectedTokens, EOF.String())
+
+			var actualTokens []string
 			for _, t := range res {
 				actualTokens = append(actualTokens, tokens[t.Type])
 			}
+
 			assert.Equal(t, expectedTokens, actualTokens)
 
-			// literal values
+			// literals
 			if len(tc.Literals) > 0 {
+				expectedLiterals := tc.Literals
+				expectedLiterals = append(expectedLiterals, "") // EOF
+
 				var actualLiterals []string
 				for _, t := range res {
 					actualLiterals = append(actualLiterals, t.Literal)
+
 				}
-				assert.Equal(t, tc.Literals, actualLiterals)
+				assert.Equal(t, expectedLiterals, actualLiterals)
 			}
 		})
 	}

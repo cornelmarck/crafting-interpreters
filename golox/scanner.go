@@ -1,7 +1,11 @@
 package main
 
-// Scanner tokenizes Lox source code. The implementation is largely based on the
-// Go language scanner rather than the example code in the book.
+import (
+	"errors"
+)
+
+// Scanner tokenizes Lox source code. The implementation is based on the
+// Go language scanner instead of the example code in the book.
 type Scanner struct {
 	src []byte
 
@@ -9,7 +13,6 @@ type Scanner struct {
 	prevOffset int // first character of current lexeme being scanned
 	lineOffset int // offset of first character of the current line
 	lineNumber int // current line number, starting at 1
-
 }
 
 func NewScanner() *Scanner {
@@ -90,6 +93,15 @@ func (s *Scanner) scanToken() (tok Token) {
 			for next, ok := s.peekNext(); ok && next != '\n'; {
 				s.next()
 			}
+		case '"':
+			t = String
+			lit, err := s.scanString()
+			if err != nil {
+				tok.Type = Illegal
+				break
+			}
+			tok.Type = String
+			tok.Literal = lit
 		default:
 			t = Illegal
 		}
@@ -121,16 +133,12 @@ func (s *Scanner) next() {
 
 func (s *Scanner) skipWhiteSpace() {
 	for !s.eof() {
-		switch s.src[s.offset] {
-		case '\n':
-		case ' ':
-		case '\r':
-		case '\t':
-		default:
-			return
+		ch := s.src[s.offset]
+		if ch == '\n' || ch == ' ' || ch == '\r' || ch == '\t' {
+			s.next()
+			continue
 		}
-
-		s.next()
+		return
 	}
 }
 
@@ -170,6 +178,28 @@ func (s *Scanner) scanIdentifier() string {
 	s.offset = len(s.src)
 	s.prevOffset = len(s.src)
 	return string(s.src[startOffset:s.offset])
+}
+
+func (s *Scanner) scanString() (string, error) {
+	// opening " is already consumed
+	s.next()
+	for {
+		if s.offset == len(s.src) || s.src[s.offset] == '\n' {
+			return "", errors.New("string literal not terminated")
+		}
+
+		if s.src[s.offset] == '"' {
+			break
+		}
+
+		// we can increment without using next() because newlines
+		// are illegal
+		s.offset += 1
+	}
+
+	lit := string(s.src[s.prevOffset:s.offset])
+	s.next()
+	return lit, nil
 }
 
 // return true if rune is an alphabetic character or underscore
