@@ -1,11 +1,11 @@
-package main
+package token
 
 import (
 	"errors"
 )
 
 // Scanner tokenizes Lox source code. The implementation is based on the
-// Go language scanner instead of the example code in the book.
+// Go language scanner (go/scanner)
 type Scanner struct {
 	src []byte
 
@@ -43,7 +43,7 @@ func (s *Scanner) scanToken() (tok Token) {
 		return tok
 	}
 
-	var t TokenType
+	var t Type
 
 	ch := rune(s.src[s.offset])
 	if isLetter(ch) {
@@ -52,6 +52,8 @@ func (s *Scanner) scanToken() (tok Token) {
 		if t == Identifier {
 			tok.Literal = lit
 		}
+	} else if isDecimal(ch) {
+
 	} else {
 		switch ch {
 		case '(':
@@ -146,7 +148,7 @@ func (s *Scanner) eof() bool {
 	return s.offset >= len(s.src)
 }
 
-func (s *Scanner) matchNext(char rune, ifTrue TokenType, ifFalse TokenType) TokenType {
+func (s *Scanner) matchNext(char rune, ifTrue Type, ifFalse Type) Type {
 	if ch, ok := s.peekNext(); ok && ch == char {
 		s.offset += 1
 		return ifTrue
@@ -201,6 +203,8 @@ func (s *Scanner) scanString() (string, error) {
 	s.next()
 	return lit, nil
 }
+
+func (s *Scanner) scanNumber() {}
 
 // return true if rune is an alphabetic character or underscore
 func isLetter(ch rune) bool {

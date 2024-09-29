@@ -1,4 +1,4 @@
-package main
+package token
 
 import (
 	"testing"
@@ -12,45 +12,45 @@ func TestScanTokens(t *testing.T) {
 	for _, tc := range []struct {
 		Name     string
 		Src      string
-		Tokens   []TokenType
-		Literals []string
+		Tokens   []Type
+		Literals []any
 	}{
 		{
 			Name:   "single character",
 			Src:    "*",
-			Tokens: []TokenType{Star},
+			Tokens: []Type{Star},
 		},
 		{
 			Name:   "with whitespace",
 			Src:    "\n * + *   \n   ",
-			Tokens: []TokenType{Star, Plus, Star},
+			Tokens: []Type{Star, Plus, Star},
 		},
 		{
 			Name:   "empty string",
 			Src:    "",
-			Tokens: []TokenType{},
+			Tokens: []Type{},
 		},
 		{
 			Name:   "two char tokens",
 			Src:    "\t >= \n\n <==",
-			Tokens: []TokenType{GreaterEqual, LessEqual, Equal},
+			Tokens: []Type{GreaterEqual, LessEqual, Equal},
 		},
 		{
 			Name:   "keyword",
 			Src:    "while",
-			Tokens: []TokenType{While},
+			Tokens: []Type{While},
 		},
 		{
 			Name:     "identifier and keyword",
 			Src:      "beans and toast",
-			Tokens:   []TokenType{Identifier, And, Identifier},
-			Literals: []string{"beans", "", "toast"},
+			Tokens:   []Type{Identifier, And, Identifier},
+			Literals: []any{"beans", nil, "toast"},
 		},
 		{
 			Name:     "string literal",
 			Src:      `beans = "toast"`,
-			Tokens:   []TokenType{Identifier, Equal, String},
-			Literals: []string{"beans", "", "toast"},
+			Tokens:   []Type{Identifier, Equal, String},
+			Literals: []any{"beans", nil, "toast"},
 		},
 	} {
 		tc := tc
@@ -77,9 +77,9 @@ func TestScanTokens(t *testing.T) {
 			// literals
 			if len(tc.Literals) > 0 {
 				expectedLiterals := tc.Literals
-				expectedLiterals = append(expectedLiterals, "") // EOF
+				expectedLiterals = append(expectedLiterals, nil) // EOF
 
-				var actualLiterals []string
+				var actualLiterals []any
 				for _, t := range res {
 					actualLiterals = append(actualLiterals, t.Literal)
 

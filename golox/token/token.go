@@ -1,12 +1,12 @@
-package main
+package token
 
 import (
 	"fmt"
 )
 
 type Token struct {
-	Type    TokenType
-	Literal string
+	Type    Type
+	Literal any
 	Pos     Position
 }
 
@@ -16,11 +16,11 @@ type Position struct {
 	Column int // column number, starting at 1
 }
 
-type TokenType int
+type Type int
 
 const (
 	// Special tokens
-	Illegal TokenType = iota
+	Illegal Type = iota
 	EOF
 
 	// Single-character tokens
@@ -119,24 +119,24 @@ var tokens = [...]string{
 	While:  "while",
 }
 
-func (t TokenType) String() string {
-	if 0 <= t && t < TokenType(len(tokens)) {
+func (t Type) String() string {
+	if 0 <= t && t < Type(len(tokens)) {
 		return tokens[t]
 	}
 	return fmt.Sprintf("token(%d)", t)
 }
 
-var keywords map[string]TokenType
+var keywords map[string]Type
 
 func init() {
-	keywords = make(map[string]TokenType, keyword_end-(keyword_beg+1))
+	keywords = make(map[string]Type, keyword_end-(keyword_beg+1))
 	for i := keyword_beg + 1; i < keyword_end; i++ {
 		keywords[tokens[i]] = i
 	}
 }
 
 // Lookup if token is a keyword, defaulting to an identifier if not found
-func Lookup(ident string) TokenType {
+func Lookup(ident string) Type {
 	if t, ok := keywords[ident]; ok {
 		return t
 	}
