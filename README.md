@@ -1,25 +1,16 @@
 # Crafting Interpreters
 
- Crafting Interpreters (2021) is a great book by written by Robert Nystrom. It is availabe for free at [craftinginterpreters.com](https://craftinginterpreters.com/contents.html).
+ Crafting Interpreters is a book on programming language design by Robert Nystrom. It is availabe for free at [craftinginterpreters.com](https://craftinginterpreters.com/contents.html).
 
-This repo contains my implementation of the Lox language and interpreter. I worked on this repo while studying the book, re-implementing the Java codebase in idiomatic Go.
+This repo contains my implementation of the Lox language and interpreter. I worked on this repo while studying the book, re-implementing the Java interpreter in Go, and the bytecode VM in Zig instead of C.
 
-## Grammar
 
-Lox is described by the following context-free grammar.
-```
-expression     → equality ;
-equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-term           → factor ( ( "-" | "+" ) factor )* ;
-factor         → unary ( ( "/" | "*" ) unary )* ;
-unary          → ( "!" | "-" ) unary
-               | primary ;
-primary        → NUMBER | STRING | "true" | "false" | "nil"
-               | "(" expression ")" ;
-```
+## The Lox language
 
-## Data types
+Lox is an interpreted language that was designed within the context of the book. It is a dynamic language that supports classes, functions, variables, statements and expressions.
+
+Lox is described by a context-free grammer [(link here)](https://craftinginterpreters.com/appendix-i.html).
+
 
 Lox has the following data types:
 - Booleans
