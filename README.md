@@ -10,10 +10,3 @@ This repo contains my implementation of the Lox language and interpreter. I work
 Lox is an interpreted language that was designed within the context of the book. It is a dynamic language that supports classes, functions, variables, statements and expressions.
 
 Lox is described by a context-free grammer [(link here)](https://craftinginterpreters.com/appendix-i.html).
-
-
-Lox has the following data types:
-- Booleans
-- Numbers: Both integers and decimals are implemented as 64 bit floats.
-- Strings
-- Nil
