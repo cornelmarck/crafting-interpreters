@@ -1,141 +1,281 @@
 package ast
 
 import (
-	tok "golox/token"
+	"errors"
+	"fmt"
+
+	"github.com/cornelmarck/crafting-interpreters/golox/token"
 )
 
-// Parser is a recursive descent parser
+// Parser is a recursive descent parser.
+// The main todo is implementing syntax validation and error handling.
 
 type Parser struct {
-	tokens []tok.Token
-	offset int
+	tokens  []token.Token
+	current token.Token
+	offset  int
 }
 
-func NewParser(tokens []tok.Token) *Parser {
+func NewParser(tokens []token.Token) *Parser {
 	return &Parser{
-		tokens: tokens,
-		offset: 0,
+		tokens:  tokens,
+		current: tokens[0],
+		offset:  0,
 	}
 }
 
-func (p *Parser) Parse() Node {
-	return p.parseExpression()
-}
-
-func (p *Parser) parseExpression() Node {
-	return p.parseEquality()
-}
-
-func (p *Parser) parseEquality() Node {
-	node := p.parseComparison()
-	for p.matchToken(tok.EqualEqual, tok.BangEqual) {
-		op := p.currentToken()
-		p.next()
-		node = &BinaryNode{
-			Operator: op,
-			Left:     node,
-			Right:    p.parseComparison(),
+func (p *Parser) Parse() ([]Statement, error) {
+	var statements []Statement
+	for !p.eof() {
+		statement, err := p.declaration()
+		if err != nil {
+			return statements, err
 		}
+		statements = append(statements, statement)
 	}
-	return node
+	return statements, nil
 }
 
-func (p *Parser) parseComparison() Node {
-	node := p.parseTerm()
-	for p.matchToken(tok.Greater, tok.GreaterEqual, tok.Less, tok.LessEqual) {
-		op := p.currentToken()
+// Declaration
+
+func (p *Parser) declaration() (Statement, error) {
+	if p.match(token.Var) {
 		p.next()
-		node = &BinaryNode{
-			Operator: op,
-			Left:     node,
-			Right:    p.parseTerm(),
-		}
+		return p.parseVarDeclaration()
 	}
-	return node
+	return p.statement()
 }
 
-func (p *Parser) parseTerm() Node {
-	node := p.parseFactor()
-	for p.matchToken(tok.Minus, tok.Plus) {
-		op := p.currentToken()
-		p.next()
-		node = &BinaryNode{
-			Operator: op,
-			Left:     node,
-			Right:    p.parseFactor(),
-		}
+func (p *Parser) parseVarDeclaration() (Statement, error) {
+	if !p.match(token.Identifier) {
+		return nil, errors.New("missing identifier in variable declaration")
 	}
-	return node
-}
-
-func (p *Parser) parseFactor() Node {
-	node := p.parseUrnary()
-	for p.matchToken(tok.Slash, tok.Star) {
-		op := p.currentToken()
-		p.next()
-		node = &BinaryNode{
-			Operator: op,
-			Left:     node,
-			Right:    p.parseFactor(),
-		}
-	}
-	return node
-}
-
-func (p *Parser) parseUrnary() Node {
-	if p.matchToken(tok.Bang, tok.Minus) {
-		op := p.currentToken()
-		p.next()
-		return &UrnaryNode{
-			Operator: op,
-			Right:    p.parseUrnary(),
-		}
-	}
-	return p.parsePrimary()
-}
-
-func (p *Parser) parsePrimary() Node {
-	c := p.currentToken()
+	identifier := p.current
 	p.next()
-	switch c.Type {
-	case tok.False:
-		return BooleanNode{Value: false}
-	case tok.True:
-		return BooleanNode{Value: true}
-	case tok.Nil:
-		return NilNode{}
-	case tok.Number:
-		return NumberNode{c.Literal.(float64)}
-	case tok.String:
-		return StringNode{c.Literal.(string)}
-	case tok.LeftParen:
-		node := p.parseExpression()
+
+	var initializer Expression
+	if p.match(token.Equal) {
 		p.next()
-		// TODO: assert that the closing parenthesis is present instead of
-		// simply skipping over it
-		return &GroupingNode{Expression: node}
-	case tok.EOF:
-		return nil
+		expression, err := p.expression()
+		if err != nil {
+			return nil, err
+		}
+		initializer = expression
+	}
+
+	if !p.match(token.Semicolon) {
+		return nil, errors.New("expected ';' after variable declaration")
+	}
+	p.next()
+	return VariableDeclaration{
+		Name:        identifier.Literal.(string),
+		Initializer: initializer,
+	}, nil
+}
+
+// Statements
+
+func (p *Parser) statement() (Statement, error) {
+	if p.match(token.Print) {
+		p.next()
+		return p.print()
+	}
+	expression, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	if !p.match(token.Semicolon) {
+		return nil, errors.New("expected ';' after expression statement")
+	}
+	p.next()
+
+	return ExpressionStatement{
+		Expression: expression,
+	}, nil
+}
+
+func (p *Parser) print() (Statement, error) {
+	expression, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+
+	node := &PrintStatement{
+		Expression: expression,
+	}
+	p.next()
+	if !p.match(token.Semicolon) {
+		return nil, errors.New("expected ':' after print statement")
+	}
+	p.next()
+	return node, nil
+}
+
+// Expressions
+
+func (p *Parser) expression() (Expression, error) {
+
+	return p.equality()
+}
+
+func (p *Parser) assignment() (Expression, error) {
+	return nil, nil
+}
+
+func (p *Parser) equality() (Expression, error) {
+	left, err := p.comparison()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.match(token.EqualEqual, token.BangEqual) {
+		operator := p.current.Type
+		p.next()
+
+		right, err := p.comparison()
+		if err != nil {
+			return nil, err
+		}
+		left = &BinaryExpression{
+			Operator: operator,
+			Left:     left,
+			Right:    right,
+		}
+	}
+	return left, nil
+}
+
+func (p *Parser) comparison() (Expression, error) {
+	left, err := p.term()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.match(token.Greater, token.GreaterEqual, token.Less, token.LessEqual) {
+		operator := p.current.Type
+		p.next()
+
+		right, err := p.term()
+		if err != nil {
+			return nil, err
+		}
+		left = &BinaryExpression{
+			Operator: operator,
+			Left:     left,
+			Right:    right,
+		}
+	}
+	return left, nil
+}
+
+func (p *Parser) term() (Expression, error) {
+	left, err := p.factor()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.match(token.Minus, token.Plus) {
+		operator := p.current.Type
+		p.next()
+
+		right, err := p.factor()
+		if err != nil {
+			return nil, err
+		}
+		left = &BinaryExpression{
+			Operator: operator,
+			Left:     left,
+			Right:    right,
+		}
+	}
+	return left, nil
+}
+
+func (p *Parser) factor() (Expression, error) {
+	left, err := p.urnary()
+	if err != nil {
+		return nil, err
+	}
+
+	for p.match(token.Slash, token.Star) {
+		operator := p.current.Type
+		p.next()
+
+		right, err := p.factor()
+		if err != nil {
+			return nil, err
+		}
+		left = &BinaryExpression{
+			Operator: operator,
+			Left:     left,
+			Right:    right,
+		}
+	}
+	return left, nil
+}
+
+func (p *Parser) urnary() (Expression, error) {
+	if p.match(token.Bang, token.Minus) {
+		operator := p.current.Type
+		p.next()
+
+		right, err := p.urnary()
+		if err != nil {
+			return nil, err
+		}
+		return &UrnaryExpression{
+			Operator: operator,
+			Right:    right,
+		}, nil
+	}
+	return p.primary()
+}
+
+func (p *Parser) primary() (Expression, error) {
+	defer p.next()
+
+	switch p.current.Type {
+	case token.False:
+		return BooleanExpression{Value: false}, nil
+	case token.True:
+		return BooleanExpression{Value: true}, nil
+	case token.Nil:
+		return NilExpression{}, nil
+	case token.Number:
+		return NumberExpression{Value: p.current.Literal.(float64)}, nil
+	case token.String:
+		return StringExpression{Value: p.current.Literal.(string)}, nil
+	case token.LeftParen:
+		p.next()
+		grouping, err := p.expression()
+		if err != nil {
+		}
+
+		if !p.match(token.RightParen) {
+			return nil, errors.New("expected closing ')' after grouping expression")
+		}
+		return &GroupingExpression{Expression: grouping}, nil
 	default:
-		// TODO: return an error instead
-		return nil
+		return nil, fmt.Errorf("unexpected token: %s", p.current.Type.String())
 	}
 }
 
-// helper functions
+// Helper functions
+
+func (p *Parser) eof() bool {
+	return p.current.Type == token.EOF
+}
 
 func (p *Parser) next() {
-	p.offset += 1
+	if p.current.Type != token.EOF {
+		p.offset += 1
+		p.current = p.tokens[p.offset]
+	}
 }
 
-func (p *Parser) currentToken() tok.Token {
-	return p.tokens[p.offset]
-}
-
-func (p *Parser) matchToken(types ...tok.Type) bool {
-	c := p.currentToken()
+func (p *Parser) match(types ...token.Type) bool {
 	for _, t := range types {
-		if c.Type == t {
+		if p.current.Type == t {
 			return true
 		}
 	}

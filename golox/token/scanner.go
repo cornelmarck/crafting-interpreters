@@ -15,16 +15,14 @@ type Scanner struct {
 	lineNumber int // current line number, starting at 1
 }
 
-func NewScanner() *Scanner {
-	var s Scanner
-	s.reset()
-	return &s
+func NewScanner(src []byte) *Scanner {
+	return &Scanner{
+		src:        src,
+		lineNumber: 1,
+	}
 }
 
-func (s *Scanner) Scan(src []byte) []Token {
-	s.reset()
-	s.src = src
-
+func (s *Scanner) Scan() []Token {
 	var tokens []Token
 	for {
 		t := s.scanToken()
@@ -114,13 +112,6 @@ func (s *Scanner) scanToken() (tok Token) {
 	return tok
 }
 
-func (s *Scanner) reset() {
-	s.offset = 0
-	s.prevOffset = 0
-	s.lineOffset = 0
-	s.lineNumber = 1
-}
-
 // read the next ascii char
 func (s *Scanner) next() {
 	if !s.eof() {
@@ -193,14 +184,11 @@ func (s *Scanner) scanString() (string, error) {
 		if s.src[s.offset] == '"' {
 			break
 		}
-
-		// we can increment without using next() because newlines
-		// are illegal
+		// we can increment without using next() because newlines are illegal
 		s.offset += 1
 	}
 
 	lit := string(s.src[s.prevOffset:s.offset])
-	s.next()
 	return lit, nil
 }
 

@@ -48,17 +48,22 @@ func TestScanTokens(t *testing.T) {
 		},
 		{
 			Name:     "string literal",
-			Src:      `beans = "toast"`,
-			Tokens:   []Type{Identifier, Equal, String},
-			Literals: []any{"beans", nil, "toast"},
+			Src:      `beans = "toast";`,
+			Tokens:   []Type{Identifier, Equal, String, Semicolon},
+			Literals: []any{"beans", nil, "toast", nil},
+		}, {
+			Name:     "variable declaration",
+			Src:      "var hello = \"world\";",
+			Tokens:   []Type{Var, Identifier, Equal, String, Semicolon},
+			Literals: []any{nil, "hello", nil, "world", nil},
 		},
 	} {
 		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 
-			s := NewScanner()
-			res := s.Scan([]byte(tc.Src))
+			s := NewScanner([]byte(tc.Src))
+			res := s.Scan()
 
 			// token types
 			var expectedTokens []string

@@ -1,46 +1,49 @@
-package main
+package interpreter
 
 import (
 	"errors"
-	"golox/ast"
-	"golox/token"
+	"fmt"
+
+	"github.com/cornelmarck/crafting-interpreters/golox/ast"
+	"github.com/cornelmarck/crafting-interpreters/golox/token"
 )
 
-func Evaluate(expr ast.Node) (any, error) {
+func evaluateExpression(expr ast.Expression, env environment) (any, error) {
 	switch node := expr.(type) {
-	// primary
-	case ast.BooleanNode:
+	case ast.BooleanExpression:
 		return node.Value, nil
-	case ast.NilNode:
+	case ast.NilExpression:
 		return nil, nil
-	case ast.NumberNode:
+	case ast.NumberExpression:
 		return node.Value, nil
-	case ast.StringNode:
+	case ast.StringExpression:
 		return node.Value, nil
-	case *ast.GroupingNode:
-		return Evaluate(node.Expression)
-	case *ast.UrnaryNode:
-		return evalateUrnary(node)
-	case *ast.BinaryNode:
-		return evaluateBinary(node)
+	case ast.VariableExpression:
+		return env.get(node.Name)
+	case *ast.GroupingExpression:
+		return evaluateExpression(node.Expression, env)
+	case *ast.UrnaryExpression:
+		return evaluateUrnary(node, env)
+	case *ast.BinaryExpression:
+		return evaluateBinary(node, env)
+	default:
+		return nil, fmt.Errorf("invalid expression: %d", node.Type())
 	}
-
-	return nil, nil
 }
 
-func evalateUrnary(node *ast.UrnaryNode) (any, error) {
-	right, err := Evaluate(node.Right)
+func evaluateUrnary(node *ast.UrnaryExpression, env environment) (any, error) {
+	right, err := evaluateExpression(node.Right, env)
 	if err != nil {
 		return nil, err
 	}
 
-	switch node.Operator.Type {
+	switch node.Operator {
 	case token.Bang:
 		return !isTruthy(right), nil
 	case token.Minus:
 		v, ok := castUrnaryOperand[float64](right)
 		if !ok {
-			return nil, ErrInvalidOperand
+			return nil, errors.New("invalid operand")
 		}
 		return -v, nil
 	}
@@ -48,18 +51,18 @@ func evalateUrnary(node *ast.UrnaryNode) (any, error) {
 	return nil, errors.New("unknown urnary operator")
 }
 
-func evaluateBinary(node *ast.BinaryNode) (any, error) {
-	left, err := Evaluate(node.Left)
+func evaluateBinary(node *ast.BinaryExpression, env environment) (any, error) {
+	left, err := evaluateExpression(node.Left, env)
 	if err != nil {
 		return nil, err
 	}
-	right, err := Evaluate(node.Right)
+	right, err := evaluateExpression(node.Right, env)
 	if err != nil {
 		return nil, err
 	}
 
 	// Equality check does not have type restrictions
-	switch node.Operator.Type {
+	switch node.Operator {
 	case token.EqualEqual:
 		return left == right, nil
 	case token.BangEqual:
@@ -67,7 +70,7 @@ func evaluateBinary(node *ast.BinaryNode) (any, error) {
 	}
 
 	// Plus is a special case because of string concatenation
-	if node.Operator.Type == token.Plus {
+	if node.Operator == token.Plus {
 		l, r, ok := castBinaryOperand[string](left, right)
 		if ok {
 			return l + r, nil
@@ -77,10 +80,10 @@ func evaluateBinary(node *ast.BinaryNode) (any, error) {
 	// All remaining operands are numeric
 	l, r, ok := castBinaryOperand[float64](left, right)
 	if !ok {
-		return nil, ErrInvalidOperand
+		return nil, errors.New("invalid operand")
 	}
 
-	switch node.Operator.Type {
+	switch node.Operator {
 	// arithmetic
 	case token.Minus:
 		return l - r, nil
@@ -88,7 +91,7 @@ func evaluateBinary(node *ast.BinaryNode) (any, error) {
 		return l + r, nil
 	case token.Slash:
 		if r == .0 {
-			return nil, ErrDivideByZero
+			return nil, errors.New("divide by zero")
 		}
 		return l / r, nil
 	case token.Star:
@@ -104,7 +107,7 @@ func evaluateBinary(node *ast.BinaryNode) (any, error) {
 		return l <= r, nil
 	}
 
-	return nil, errors.New("unknown binary operator")
+	return nil, fmt.Errorf("invalid binary operator: %v", node.Operator.String())
 }
 
 func isTruthy(value any) bool {
