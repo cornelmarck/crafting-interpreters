@@ -2,6 +2,7 @@ package token
 
 import (
 	"errors"
+	"strconv"
 )
 
 // Scanner tokenizes Lox source code. The implementation is based on the
@@ -51,7 +52,11 @@ func (s *Scanner) scanToken() (tok Token) {
 			tok.Literal = lit
 		}
 	} else if isDecimal(ch) {
-
+		lit, err := s.scanNumber()
+		if err == nil {
+			t = Number
+			tok.Literal = lit
+		}
 	} else {
 		switch ch {
 		case '(':
@@ -192,7 +197,23 @@ func (s *Scanner) scanString() (string, error) {
 	return lit, nil
 }
 
-func (s *Scanner) scanNumber() {}
+func (s *Scanner) scanNumber() (float64, error) {
+	if s.offset == len(s.src)-1 {
+		literal := string(s.src[s.prevOffset:s.offset])
+		return strconv.ParseFloat(literal, 64)
+	}
+
+	for s.offset+1 < len(s.src) {
+		ch := rune(s.src[s.offset+1])
+		if !isDecimal(ch) && ch != '.' {
+			break
+		}
+		s.offset += 1
+	}
+	literal := string(s.src[s.prevOffset : s.offset+1])
+	s.prevOffset = s.offset
+	return strconv.ParseFloat(literal, 64)
+}
 
 // return true if rune is an alphabetic character or underscore
 func isLetter(ch rune) bool {

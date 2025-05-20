@@ -2,74 +2,79 @@ package interpreter
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/cornelmarck/crafting-interpreters/golox/ast"
 	"github.com/cornelmarck/crafting-interpreters/golox/token"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func TestInterpret(t *testing.T) {
-	print := func(expr ast.Expression) *ast.PrintStatement {
-		return &ast.PrintStatement{Expression: expr}
-	}
+var (
+	indentString = strings.Repeat("\t", 4)
+)
 
+func TestInterpreter(t *testing.T) {
 	for _, tc := range []struct {
-		name     string
-		execFunc func() []ast.Statement
-		expected string
-		err      string
+		name   string
+		code   string
+		stdOut string
+		err    string
 	}{
 		{
-			name: "print literal",
-			execFunc: func() []ast.Statement {
-				expr := ast.StringExpression{Value: "hello world"}
-				return []ast.Statement{print(expr)}
-			},
-			expected: "hello world",
+			name: "print lines",
+			code: `
+				print "hello world!";
+				print "how are you?";
+			`,
+			stdOut: `
+				hello world!
+				how are you?
+			`,
 		}, {
-			name: "print expression",
-			execFunc: func() []ast.Statement {
-				expr := &ast.BinaryExpression{
-					Operator: token.Plus,
-					Left:     ast.NumberExpression{Value: 2},
-					Right:    ast.NumberExpression{Value: 1},
-				}
-				return []ast.Statement{print(expr)}
-			},
-			expected: "3",
-			// }, {
-			// 	name: "assign variable",
-			// 	execFunc: func() []ast.Statement {
-			// 		var lines []ast.Statement
-
-			// 		lines = append(lines, &ast.ExpressionStatement{
-			// 			&ast.AssignExpression{
-			// 				Name:  "x",
-			// 				Value: "1",
-			// 			},
-			// 		})
-			// 		lines = append(lines, print(ast.VariableExpression{}))
-			// 		return lines
-			// },
+			name: "add ints",
+			code: `
+				print 1 + 2;
+			`,
+			stdOut: `
+				3
+			`,
 		},
 	} {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			i := New(&buf)
+			scanner := token.NewScanner([]byte(tc.code))
+			tokens := scanner.Scan()
 
-			for _, statement := range tc.execFunc() {
-				err := i.Interpret(statement)
-				if tc.err != "" {
-					assert.ErrorContains(t, err, tc.err)
-				}
-				assert.NoError(t, err)
+			parser := ast.NewParser(tokens)
+			statements, err := parser.Parse()
+			if err != nil {
+				t.Fatalf("error parsing code: %v", err)
 			}
-			expected := tc.expected + "\n"
-			assert.Equal(t, expected, buf.String())
+
+			var buf bytes.Buffer
+			interpreter := New(&buf)
+
+			err = interpreter.Interpret(statements...)
+			if tc.err == "" && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			} else if tc.err != "" && !strings.Contains(err.Error(), tc.err) {
+				t.Fatalf("expected %s error, got %v", tc.err, err)
+			}
+
+			expectedStdOut := parseExpectedStdOut(tc.stdOut)
+			if expectedStdOut != buf.String() {
+				t.Fatalf("expected:\n%s\ngot:\n%s", expectedStdOut, buf.String())
+			}
 		})
 	}
+}
+
+func parseExpectedStdOut(s string) string {
+	s = strings.TrimSpace(s)
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimLeft(line, indentString)
+	}
+	return strings.Join(lines, "\n") + "\n"
 }

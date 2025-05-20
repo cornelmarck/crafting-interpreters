@@ -103,9 +103,8 @@ func (p *Parser) print() (Statement, error) {
 	node := &PrintStatement{
 		Expression: expression,
 	}
-	p.next()
 	if !p.match(token.Semicolon) {
-		return nil, errors.New("expected ':' after print statement")
+		return nil, errors.New("expected ';' after print statement")
 	}
 	p.next()
 	return node, nil
@@ -114,7 +113,6 @@ func (p *Parser) print() (Statement, error) {
 // Expressions
 
 func (p *Parser) expression() (Expression, error) {
-
 	return p.equality()
 }
 
