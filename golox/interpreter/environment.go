@@ -8,6 +8,12 @@ type environment struct {
 	values map[string]any
 }
 
+func newEnvironment() environment {
+	return environment{
+		values: make(map[string]any),
+	}
+}
+
 func (e *environment) get(name string) (any, error) {
 	value, ok := e.values[name]
 	if !ok {

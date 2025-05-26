@@ -162,20 +162,13 @@ func (s *Scanner) peekNext() (char rune, ok bool) {
 // scanIdentifier reads the string of valid identifier characters at s.offset. It must
 // only be called if it is known that the character at offset is a valid letter.
 func (s *Scanner) scanIdentifier() string {
-	startOffset := s.offset
-	for n, b := range s.src[s.offset:] {
-		// avoid rune conversion for subsequent characters
-		if 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z' || b == '_' || '0' <= b && b <= '9' {
-			continue
+	for s.offset+1 < len(s.src) {
+		if !isIdentifier(s.src[s.offset+1]) {
+			return string(s.src[s.prevOffset : s.offset+1])
 		}
-
-		s.offset += n - 1
-		s.next()
-		return string(s.src[startOffset:s.offset])
+		s.offset += 1
 	}
-	s.offset = len(s.src)
-	s.prevOffset = len(s.src)
-	return string(s.src[startOffset:s.offset])
+	return string(s.src[s.prevOffset : s.offset+1])
 }
 
 func (s *Scanner) scanString() (string, error) {
@@ -222,6 +215,10 @@ func isLetter(ch rune) bool {
 
 func isDecimal(ch rune) bool {
 	return '0' <= ch && ch <= '9'
+}
+
+func isIdentifier(b byte) bool {
+	return 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z' || b == '_' || '0' <= b && b <= '9'
 }
 
 // return lowercase ch iff ch is ASCII letter

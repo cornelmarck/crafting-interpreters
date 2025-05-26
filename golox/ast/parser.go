@@ -100,7 +100,7 @@ func (p *Parser) print() (Statement, error) {
 		return nil, err
 	}
 
-	node := &PrintStatement{
+	node := PrintStatement{
 		Expression: expression,
 	}
 	if !p.match(token.Semicolon) {
@@ -253,6 +253,8 @@ func (p *Parser) primary() (Expression, error) {
 			return nil, errors.New("expected closing ')' after grouping expression")
 		}
 		return &GroupingExpression{Expression: grouping}, nil
+	case token.Identifier:
+		return VariableExpression{Name: p.current.Literal.(string)}, nil
 	default:
 		return nil, fmt.Errorf("unexpected token: %s", p.current.Type.String())
 	}

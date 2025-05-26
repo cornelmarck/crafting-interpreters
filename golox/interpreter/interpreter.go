@@ -1,9 +1,9 @@
 package interpreter
 
 import (
-	"errors"
 	"fmt"
 	"io"
+	"reflect"
 
 	"github.com/cornelmarck/crafting-interpreters/golox/ast"
 )
@@ -15,7 +15,7 @@ type Interpreter struct {
 
 func New(printer io.Writer) *Interpreter {
 	return &Interpreter{
-		env:     environment{},
+		env:     newEnvironment(),
 		printer: printer,
 	}
 }
@@ -31,12 +31,12 @@ func (i *Interpreter) Interpret(statements ...ast.Statement) error {
 
 func (i *Interpreter) execute(statement ast.Statement) error {
 	switch node := statement.(type) {
-	case *ast.PrintStatement:
+	case ast.PrintStatement:
 		return i.executePrint(node)
-	case *ast.ExpressionStatement:
+	case ast.ExpressionStatement:
 		_, err := evaluateExpression(node.Expression, i.env)
 		return err
-	case *ast.VariableDeclaration:
+	case ast.VariableDeclaration:
 		value, err := evaluateExpression(node.Initializer, i.env)
 		if err != nil {
 			return err
@@ -44,19 +44,15 @@ func (i *Interpreter) execute(statement ast.Statement) error {
 		i.env.set(node.Name, value)
 		return nil
 	default:
-		return errors.New("unknown statement")
+		return fmt.Errorf("unknown statement: %s", reflect.TypeOf(statement).String())
 	}
 }
 
-func (i *Interpreter) executePrint(node *ast.PrintStatement) error {
+func (i *Interpreter) executePrint(node ast.PrintStatement) error {
 	value, err := evaluateExpression(node.Expression, i.env)
 	if err != nil {
 		return err
 	}
 	_, err = fmt.Fprintln(i.printer, value)
 	return err
-}
-
-func (i *Interpreter) declareVar() error {
-	return nil
 }

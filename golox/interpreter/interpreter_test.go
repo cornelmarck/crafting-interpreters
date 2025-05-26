@@ -15,10 +15,10 @@ var (
 
 func TestInterpreter(t *testing.T) {
 	for _, tc := range []struct {
-		name   string
-		code   string
-		stdOut string
-		err    string
+		name     string
+		code     string
+		expected string
+		err      string
 	}{
 		{
 			name: "print lines",
@@ -26,7 +26,7 @@ func TestInterpreter(t *testing.T) {
 				print "hello world!";
 				print "how are you?";
 			`,
-			stdOut: `
+			expected: `
 				hello world!
 				how are you?
 			`,
@@ -35,9 +35,14 @@ func TestInterpreter(t *testing.T) {
 			code: `
 				print 1 + 2;
 			`,
-			stdOut: `
-				3
+			expected: `3`,
+		}, {
+			name: "declare variable",
+			code: `
+				var x = 1;
+				print x;
 			`,
+			expected: `1`,
 		},
 	} {
 		tc := tc
@@ -62,7 +67,7 @@ func TestInterpreter(t *testing.T) {
 				t.Fatalf("expected %s error, got %v", tc.err, err)
 			}
 
-			expectedStdOut := parseExpectedStdOut(tc.stdOut)
+			expectedStdOut := parseExpectedStdOut(tc.expected)
 			if expectedStdOut != buf.String() {
 				t.Fatalf("expected:\n%s\ngot:\n%s", expectedStdOut, buf.String())
 			}
